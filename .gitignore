@@ -1,0 +1,41 @@
+# Dependencies (reinstall with npm install)
+node_modules/
+
+# Build outputs
+dist/
+build/
+out/
+
+# Environment (keep secrets local)
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Hardhat / Solidity
+contracts/cache/
+contracts/artifacts/
+contracts/typechain-types/
+contracts/coverage/
+contracts/coverage.json
+
+# Misc caches
+.cache/
+.turbo/
+*.tsbuildinfo
+
+# Optional: local zip artifacts
+*.zip
