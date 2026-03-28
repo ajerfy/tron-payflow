@@ -1,0 +1,7 @@
+{
+  "network": "nile",
+  "deployedAt": "2026-03-28T09:11:57.642Z",
+  "otcSettlement": "TB59phmMjh4RCKcyKfkYHNicZ87kLvpjGZ",
+  "usdt": "THU5ZDKVGjcw5RGTXJVRRQwNGLPaMnbZUQ",
+  "purpose": "Instant OTC settlement layer with escrow, disputes, and expiries"
+}

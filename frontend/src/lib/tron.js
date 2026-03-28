@@ -1,31 +1,7 @@
 const demoMode = (import.meta.env.VITE_DEMO_MODE ?? "true") === "true";
+const tronScanBaseUrl = import.meta.env.VITE_TRONSCAN_BASE_URL ?? "https://nile.tronscan.org/#";
 const paymentProcessor = import.meta.env.VITE_PAYMENT_PROCESSOR ?? "";
-const usdtAddress = import.meta.env.VITE_USDT ?? "";
-const defaultDeadlineSeconds = Number(import.meta.env.VITE_PAYMENT_DEADLINE_SECONDS ?? 900);
 const feeLimitSun = Number(import.meta.env.VITE_FEE_LIMIT_SUN ?? 120000000);
-const trc20Abi = [
-    {
-        constant: true,
-        inputs: [{ name: "owner", type: "address" }],
-        name: "balanceOf",
-        outputs: [{ name: "", type: "uint256" }],
-        type: "function"
-    },
-    {
-        constant: true,
-        inputs: [],
-        name: "decimals",
-        outputs: [{ name: "", type: "uint8" }],
-        type: "function"
-    },
-    {
-        constant: false,
-        inputs: [{ name: "spender", type: "address" }, { name: "value", type: "uint256" }],
-        name: "approve",
-        outputs: [{ name: "", type: "bool" }],
-        type: "function"
-    }
-];
 const paymentProcessorAbi = [
     {
         name: "requestCount",
@@ -39,144 +15,185 @@ const paymentProcessorAbi = [
         type: "function",
         stateMutability: "nonpayable",
         inputs: [
+            { name: "merchant", type: "address" },
             { name: "amountUsdt", type: "uint256" },
+            { name: "dueAt", type: "uint64" },
             { name: "merchantRef", type: "string" }
         ],
         outputs: [{ name: "requestId", type: "uint256" }]
     },
     {
-        name: "executeIntentPayment",
+        name: "recordSettlementReference",
         type: "function",
         stateMutability: "nonpayable",
         inputs: [
             { name: "requestId", type: "uint256" },
-            {
-                name: "assets",
-                type: "tuple[]",
-                components: [
-                    { name: "token", type: "address" },
-                    { name: "amountInMax", type: "uint256" }
-                ]
-            },
-            { name: "maxTotalInputValueUsdt", type: "uint256" },
-            { name: "deadline", type: "uint256" }
+            { name: "amountUsdt", type: "uint256" },
+            { name: "payer", type: "address" },
+            { name: "txHash", type: "bytes32" }
         ],
-        outputs: []
+        outputs: [{ name: "reconciliationHash", type: "bytes32" }]
+    },
+    {
+        name: "getPaymentRequestSummary",
+        type: "function",
+        stateMutability: "view",
+        inputs: [{ name: "requestId", type: "uint256" }],
+        outputs: [
+            { name: "merchant", type: "address" },
+            { name: "creator", type: "address" },
+            { name: "amountUsdt", type: "uint256" },
+            { name: "amountPaidUsdt", type: "uint256" },
+            { name: "closed", type: "bool" },
+            { name: "createdAt", type: "uint64" },
+            { name: "dueAt", type: "uint64" },
+            { name: "settlementCount", type: "uint256" },
+            { name: "merchantRef", type: "string" }
+        ]
+    },
+    {
+        name: "getSettlement",
+        type: "function",
+        stateMutability: "view",
+        inputs: [
+            { name: "requestId", type: "uint256" },
+            { name: "settlementIndex", type: "uint256" }
+        ],
+        outputs: [
+            { name: "amountUsdt", type: "uint256" },
+            { name: "settledAt", type: "uint64" },
+            { name: "payer", type: "address" },
+            { name: "txHash", type: "bytes32" },
+            { name: "reconciliationHash", type: "bytes32" }
+        ]
     }
 ];
-function parseConfiguredAssets() {
-    const raw = import.meta.env.VITE_SUPPORTED_ASSETS_JSON;
-    if (!raw) {
-        return [
-            { token: "TRX", symbol: "TRX", decimals: 6, usdtRate: 0.11, feeBps: 30 },
-            { token: "TJST_TOKEN_PLACEHOLDER", symbol: "JST", decimals: 18, usdtRate: 0.19, feeBps: 35 },
-            { token: "TSUN_TOKEN_PLACEHOLDER", symbol: "SUN", decimals: 18, usdtRate: 0.14, feeBps: 40 }
-        ];
+function randomHex(length) {
+    const alphabet = "abcdef0123456789";
+    let out = "";
+    for (let index = 0; index < length; index += 1) {
+        out += alphabet[Math.floor(Math.random() * alphabet.length)];
     }
-    return JSON.parse(raw);
+    return out;
 }
-function toUnits(amount, decimals) {
-    const scaled = Math.floor(amount * 10 ** Math.min(decimals, 6)) * 10 ** Math.max(decimals - 6, 0);
-    return BigInt(scaled);
+function requireContract() {
+    if (!window.tronWeb || !paymentProcessor) {
+        throw new Error("Wallet or processor config missing");
+    }
+    return window.tronWeb.contract(paymentProcessorAbi, paymentProcessor);
+}
+function toUsdtUnits(amount) {
+    return Math.round(amount * 1000000).toString();
+}
+function unixIso(secondsRaw) {
+    const seconds = Number(String(secondsRaw ?? 0));
+    if (!seconds) {
+        return undefined;
+    }
+    return new Date(seconds * 1000).toISOString();
+}
+async function toBytes32(reference) {
+    const trimmed = reference.trim();
+    if (!trimmed) {
+        throw new Error("Settlement reference is required.");
+    }
+    if (/^(0x)?[0-9a-fA-F]{64}$/.test(trimmed)) {
+        return trimmed.startsWith("0x") ? trimmed : `0x${trimmed}`;
+    }
+    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(trimmed));
+    return `0x${Array.from(new Uint8Array(digest)).map((value) => value.toString(16).padStart(2, "0")).join("")}`;
+}
+function sleep(ms) {
+    return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+export function isDemoMode() {
+    return demoMode;
+}
+export function getNetworkLabel() {
+    return demoMode ? "Demo reconciliation mode" : "TRON Nile";
+}
+export function getExplorerTxUrl(txHash) {
+    if (!txHash || txHash.startsWith("SIM_")) {
+        return "";
+    }
+    return `${tronScanBaseUrl}/transaction/${txHash}`;
+}
+export function getExplorerAddressUrl(address) {
+    if (!address) {
+        return "";
+    }
+    return `${tronScanBaseUrl}/address/${address}`;
 }
 export async function connectWallet() {
-    if (demoMode)
-        return { address: "TDEMO_WALLET_ADDRESS" };
-    if (!window.tronLink)
+    if (demoMode) {
+        return { address: "TDEMO_COUNTERPARTY_ADDRESS" };
+    }
+    if (!window.tronLink) {
         throw new Error("TronLink not found");
+    }
     await window.tronLink.request({ method: "tron_requestAccounts" });
-    if (!window.tronWeb?.defaultAddress?.base58)
+    if (!window.tronWeb?.defaultAddress?.base58) {
         throw new Error("Wallet not connected");
+    }
     return { address: window.tronWeb.defaultAddress.base58 };
 }
-export async function createOnchainPaymentRequest(amountUsdt, label) {
-    if (demoMode)
-        return undefined;
-    if (!window.tronWeb || !paymentProcessor)
-        throw new Error("Wallet or processor config missing");
-    const tronWeb = window.tronWeb;
-    const contract = await tronWeb.contract(paymentProcessorAbi, paymentProcessor);
-    const requestCountRaw = await contract.requestCount().call();
-    const requestId = Number(requestCountRaw.toString());
-    const amount = Math.floor(amountUsdt * 1000000).toString();
-    await contract.createPaymentRequest(amount, label).send({ feeLimit: feeLimitSun });
-    return requestId;
-}
-export async function loadBalances() {
+export async function createOnchainPaymentRequest(merchantAddress, amountUsdt, label, dueAt) {
     if (demoMode) {
-        return [
-            { token: "TRX", symbol: "TRX", balance: 820, usdtRate: 0.11, feeBps: 30 },
-            { token: "JST", symbol: "JST", balance: 320, usdtRate: 0.19, feeBps: 35 },
-            { token: "SUN", symbol: "SUN", balance: 150, usdtRate: 0.14, feeBps: 40 }
-        ];
+        return undefined;
     }
-    const tronWeb = window.tronWeb;
-    if (!tronWeb?.defaultAddress?.base58)
-        throw new Error("Wallet not connected");
-    const wallet = tronWeb.defaultAddress.base58;
-    const assets = parseConfiguredAssets();
-    const balances = [];
-    for (const a of assets) {
-        if (a.token === "TRX") {
-            const sun = await tronWeb.trx.getBalance(wallet);
-            balances.push({ token: "TRX", symbol: "TRX", balance: sun / 1000000, usdtRate: a.usdtRate, feeBps: a.feeBps });
-            continue;
-        }
-        if (!a.token.startsWith("T"))
-            continue;
-        const tokenContract = await tronWeb.contract(trc20Abi, a.token);
-        const raw = await tokenContract.balanceOf(wallet).call();
-        const balance = Number(raw.toString()) / 10 ** a.decimals;
-        balances.push({ token: a.token, symbol: a.symbol, balance, usdtRate: a.usdtRate, feeBps: a.feeBps });
-    }
-    return balances.filter((b) => b.balance > 0);
+    await connectWallet();
+    const contract = await requireContract();
+    const requestCountRaw = await contract.requestCount().call();
+    const requestId = Number(String(requestCountRaw));
+    const dueAtUnix = dueAt ? Math.floor(new Date(dueAt).getTime() / 1000) : 0;
+    const txHash = await contract.createPaymentRequest(merchantAddress, toUsdtUnits(amountUsdt), dueAtUnix, label).send({ feeLimit: feeLimitSun, shouldPollResponse: false });
+    return {
+        requestId,
+        txHash: String(txHash)
+    };
 }
-export async function simulateOrSendIntentExecution(params) {
-    if (demoMode)
-        return `SIM_TX_${Date.now()}`;
-    if (!window.tronWeb)
-        throw new Error("TronWeb unavailable");
-    if (!paymentProcessor || !usdtAddress)
-        throw new Error("Missing contract env vars");
-    const tronWeb = window.tronWeb;
-    const configured = parseConfiguredAssets();
-    const decimalsByToken = new Map(configured.map((a) => [a.token, a.decimals]));
-    const assets = params.quoteLegs.map((leg) => {
-        if (!leg.token.startsWith("T")) {
-            throw new Error("Live mode requires TRC-20 token addresses (use WTRX instead of native TRX).");
+export async function anchorSettlementReference(params) {
+    if (demoMode) {
+        throw new Error("Live Nile anchoring is disabled in demo mode.");
+    }
+    const { address } = await connectWallet();
+    const payer = params.payerAddress || address;
+    const contract = await requireContract();
+    const referenceBytes = await toBytes32(params.reference);
+    const txHash = await contract.recordSettlementReference(params.requestId, toUsdtUnits(params.amountUsdt), payer, referenceBytes).send({ feeLimit: feeLimitSun, shouldPollResponse: false });
+    return {
+        txHash: String(txHash),
+        payerAddress: payer,
+        settledAt: new Date().toISOString()
+    };
+}
+export async function waitForSettlementAnchor(requestId, previousSettlementCount = 0) {
+    if (demoMode) {
+        return undefined;
+    }
+    const contract = await requireContract();
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+        const summary = await contract.getPaymentRequestSummary(requestId).call();
+        const settlementCount = Number(String(summary.settlementCount ?? summary[7] ?? 0));
+        if (settlementCount > previousSettlementCount) {
+            return {
+                amountPaidUsdt: Number(String(summary.amountPaidUsdt ?? summary[3] ?? 0)) / 1000000,
+                settlementCount,
+                dueAt: unixIso(summary.dueAt ?? summary[6]),
+                closed: Boolean(summary.closed ?? summary[4])
+            };
         }
-        const decimals = decimalsByToken.get(leg.token) ?? 6;
-        return { token: leg.token, amountInMax: toUnits(leg.amountIn, decimals).toString() };
-    });
-    // Pre-approvals for TRC-20 assets used in route.
-    for (const leg of params.quoteLegs) {
-        if (leg.token === "TRX")
-            continue;
-        const decimals = decimalsByToken.get(leg.token) ?? 6;
-        const amount = toUnits(leg.amountIn, decimals).toString();
-        const tokenContract = await tronWeb.contract(trc20Abi, leg.token);
-        await tokenContract.approve(paymentProcessor, amount).send({ feeLimit: feeLimitSun });
+        await sleep(1500);
     }
-    const contract = await tronWeb.contract(paymentProcessorAbi, paymentProcessor);
-    const deadline = Math.floor(Date.now() / 1000) + defaultDeadlineSeconds;
-    const maxInput = Math.ceil(params.maxTotalInputValueUsdt * 1000000).toString();
-    // Dry-run simulation for user-facing failure hints.
-    try {
-        await contract.executeIntentPayment(params.requestId, assets, maxInput, deadline).call();
-    }
-    catch (err) {
-        const message = String(err);
-        if (message.toLowerCase().includes("energy"))
-            throw new Error("Out of Energy/Bandwidth");
-        if (message.toLowerCase().includes("slippage"))
-            throw new Error("Slippage exceeded");
-        if (message.toLowerCase().includes("liquidity"))
-            throw new Error("Insufficient liquidity");
-        throw new Error("Simulation failed before execution");
-    }
-    const txId = await contract.executeIntentPayment(params.requestId, assets, maxInput, deadline).send({
-        feeLimit: feeLimitSun,
-        shouldPollResponse: false
-    });
-    return String(txId);
+    throw new Error("On-chain settlement anchor confirmation timed out");
+}
+export async function simulateSettlementReference(params) {
+    await new Promise((resolve) => window.setTimeout(resolve, 800));
+    const txHash = `SIM_${params.invoiceId}_${randomHex(12)}`;
+    return {
+        txHash,
+        settledAt: new Date().toISOString(),
+        note: `Demo settlement simulated for ${params.amountUsdt.toFixed(2)} USDT to ${params.merchantAddress}.`,
+        payerAddress: params.payerAddress
+    };
 }

@@ -1,44 +1,93 @@
-export type Payment = {
-  id: string;
-  merchantAddress: string;
-  amountUsdt: number;
+export type TokenSymbol = "TRX" | "USDT";
+
+export type TokenOption = {
+  symbol: TokenSymbol;
+  address: string;
+  decimals: number;
   label: string;
-  onchainRequestId?: number;
-  status: "pending" | "paid" | "failed";
-  txHash?: string;
-  createdAt: string;
-  receipt?: Receipt;
+  kind: "native" | "trc20";
 };
 
-export type WalletAsset = {
-  token: string;
-  symbol: string;
-  balance: number;
-  usdtRate: number;
-  feeBps: number;
+export type WalletBalance = {
+  symbol: TokenSymbol;
+  formatted: number;
+  raw: string;
 };
 
-export type RouteLeg = {
-  token: string;
-  symbol: string;
-  amountIn: number;
-  netUsdt: number;
-  feeUsdt: number;
+export type DealStatus =
+  | "Created"
+  | "Accepted"
+  | "BothFunded"
+  | "Settled"
+  | "Disputed"
+  | "Resolved"
+  | "Expired"
+  | "Cancelled";
+
+export type Deal = {
+  id: number;
+  partyA: string;
+  partyB: string;
+  tokenA: string;
+  amountA: string;
+  tokenB: string;
+  amountB: string;
+  status: DealStatus;
+  createdAt: number;
+  expiresAt: number;
+  partyAFunded: boolean;
+  partyBFunded: boolean;
+  partyAConfirmed: boolean;
+  partyBConfirmed: boolean;
+  disputeReason: string;
+  settledAt: number;
 };
 
-export type RouteQuote = {
-  ok: true;
-  amountUsdt: number;
-  totalFeeUsdt: number;
-  totalInputValueUsdt: number;
-  slippageBufferUsdt: number;
-  legs: RouteLeg[];
-};
+export type DealActivityAction =
+  | "create"
+  | "accept"
+  | "fund-party-a"
+  | "fund-party-b"
+  | "confirm-party-a"
+  | "confirm-party-b"
+  | "execute-settlement"
+  | "dispute"
+  | "resolve"
+  | "expire"
+  | "cancel"
+  | "approve-party-a"
+  | "approve-party-b";
 
-export type Receipt = {
-  amountUsdt: number;
-  assetsUsed: RouteLeg[];
-  totalFeeUsdt: number;
+export type DealActivity = {
+  action: DealActivityAction;
   txHash: string;
-  paidAt: string;
+  timestamp: string;
+  label: string;
+};
+
+export type DealActionState = {
+  needsApproval: boolean;
+  canAccept: boolean;
+  canFund: boolean;
+  canConfirm: boolean;
+  canExecuteSettlement: boolean;
+  canDispute: boolean;
+  canResolve: boolean;
+  canExpire: boolean;
+  canCancel: boolean;
+};
+
+export type CreateDealInput = {
+  tokenA: string;
+  amountA: string;
+  tokenB: string;
+  amountB: string;
+  counterparty: string;
+  timeoutHours: number;
+};
+
+export type AppError = {
+  title: string;
+  message: string;
+  suggestion?: string;
 };

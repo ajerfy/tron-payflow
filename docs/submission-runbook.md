@@ -1,38 +1,41 @@
 # Submission Runbook
 
-## Local Validation
+## Validation
 
 1. Contracts:
    - `cd contracts && npm install && npm test`
 2. Backend:
-   - `cd backend && npm install && npm run build`
+   - `cd backend && npm install && npm test && npm run build`
 3. Frontend:
    - `cd frontend && npm install && npm run build`
 
 ## Demo Recording Flow
 
-1. Start backend (`npm run dev`).
-2. Start frontend (`npm run dev`).
-3. Merchant:
-   - create payment link (e.g. 50 USDT).
-4. Payer:
-   - open payment link
-   - connect wallet
-   - compute route
-   - click pay once
-5. Show success state:
+1. Start backend with `npm run dev`.
+2. Start frontend with `npm run dev`.
+3. Merchant setup:
+   - show merchant profile, support email, and payout wallet
+   - create a time-limited invoice
+4. Payer checkout:
+   - open the payment link
+   - connect TronLink on Nile
+   - compute route and review fees
+   - execute payment
+5. Show success proof:
    - tx hash
-   - assets used
-   - fee breakdown
+   - TronScan link
+   - on-chain request id
+   - reconciliation hash
    - receipt JSON download
 6. Return to merchant dashboard:
    - show paid status
-   - reconciliation export JSON
+   - show attempt count / failure recovery if relevant
+   - export reconciliation JSON
 
 ## Judge Talking Points
 
-- Intent-based UX: payer states outcome, not swap path.
-- Exact-output guarantee for merchant denomination.
-- Multi-asset aggregation and route optimization.
-- Robust TRON-specific failure messaging (energy/bandwidth).
-- Modular adapter architecture for SunSwap/JustMoney expansion.
+- This is a merchant checkout product, not a simple send/receive wallet.
+- Merchant and payer each have a clear role and UX.
+- The contract exposes verifiable request state for the UI to read back after payment.
+- The checkout explains route cost, slippage buffer, and common TRON failure cases.
+- The merchant side includes support contact, invoice expiry, and reconciliation export.

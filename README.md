@@ -1,97 +1,171 @@
-# TRON PayFlow: Intent-Based Payment Router
+# Instant OTC Settlement Layer
 
-TRON PayFlow is a full-stack hackathon demo for intent-based stablecoin checkout on TRON (Nile).  
-Merchants request exact USDT (TRC-20), payers pay with any supported assets, and the system routes + settles to exact USDT.
+A product-grade OTC escrow and settlement engine on TRON Nile that replaces trust-based chat settlement with verifiable on-chain escrow, atomic delivery, disputes, expiry handling, and downloadable receipts.
 
-## Product Journey
+## Problem
 
-1. Merchant creates a payment request (`Pay 50 USDT`).
-2. System generates payment link (`/pay/:id`).
-3. Payer opens link, wallet balances are scanned.
-4. Routing engine suggests best multi-asset strategy.
-5. Payer signs one intent execution transaction.
-6. On-chain processor swaps and sends exact USDT to merchant.
-7. Receipt view shows tx hash, fee breakdown, assets used.
+OTC trades still lean on Telegram chats, screenshots, manual wire instructions, and counterparty trust. That creates three obvious failures:
 
-## Monorepo Structure
+- funds move before both sides are ready
+- disputes require off-chain reconstruction
+- there is no clean receipt trail for operations or compliance
 
-- `contracts/` - Solidity smart contracts + tests + deploy scripts
-- `backend/` - Routing/index API (Express + TypeScript)
-- `frontend/` - React checkout and merchant dashboard (Vite + TS)
-- `scripts/` - Integration and demo helpers
-- `docs/` - Architecture and Nile deployment notes
+## Solution
 
-## Key Components
+This app gives OTC desks a bilateral settlement layer:
 
-- `PaymentProcessor.sol`:
-  - payment intent lifecycle
-  - exact USDT settlement guarantee
-  - failure logging and reconciliation hash
-- `MockRouterAdapter.sol`:
-  - route adapter abstraction (replaceable with SunSwap/JustMoney adapters)
-  - multi-asset exact output swapping
-- Frontend:
-  - merchant request creation + dashboard
-  - payer checkout flow with recommended route
-  - failure handling UX and receipts export
-- Backend:
-  - quote endpoint, route computation, transaction indexing cache
+- Party A creates a deal with exact assets, amounts, and a named counterparty
+- Party B accepts the deal and both sides fund escrow
+- both parties confirm settlement, triggering atomic release
+- either side can dispute
+- expired deals can be unwound on-chain
+- the frontend maps every lifecycle transaction back into a receipt-quality UI
 
-## Quick Start
+## Architecture
 
-### 1) Contracts
+```mermaid
+flowchart LR
+    A["Party A / Creator"] -->|"createDeal"| C["OTCSettlement.sol"]
+    B["Party B / Counterparty"] -->|"acceptDeal"| C
+    A -->|"fundDeal (TRX or USDT)"| C
+    B -->|"fundDeal (TRX or USDT)"| C
+    C -->|"BothFunded"| D["Confirm / Dispute branch"]
+    D -->|"confirmSettlement by both"| E["Atomic settlement"]
+    D -->|"raiseDispute"| F["Owner arbiter"]
+    F -->|"resolveDispute"| C
+    C -->|"events + state"| G["React + TronLink dashboard"]
+    G -->|"tx hashes + receipts"| H["Operations / audit trail"]
+```
+
+## Tech Stack
+
+- Solidity smart contracts on TRON Nile
+- TronBox + Hardhat tooling
+- React + Vite frontend
+- TronLink wallet integration
+- TronWeb for blockchain reads and writes
+
+## Repo Layout
+
+- `contracts/contracts/OTCSettlement.sol`
+- `contracts/test/OTCSettlement.test.js`
+- `frontend/src/components/*`
+- `frontend/src/hooks/useTronWeb.ts`
+- `frontend/src/hooks/useContract.ts`
+- `frontend/src/abi/OTCSettlement.json`
+
+## Nile Deployment
+
+- `OTCSettlement`: `TUe7qCsqrgRkEUTZUWdD57n1GicchDHBW2`
+
+Saved in [`contracts/deployments/nile.json`](/Users/aaditjerfy/Documents/TRON_Payments_DeFi.py/contracts/deployments/nile.json)
+
+## Setup
+
+### 1. Clone and install
+
+```bash
+git clone <your-repo-url>
+cd TRON_Payments_DeFi.py
+```
+
+```bash
+cd contracts && npm install
+cd ../frontend && npm install
+cd ../backend && npm install
+```
+
+### 2. Set up TronLink
+
+1. Install TronLink browser extension
+2. Switch to `Nile Testnet`
+3. Create at least two wallets:
+   - Party A
+   - Party B
+
+### 3. Get Nile tokens
+
+- Faucet: [nileex.io/join/getJoinPage](https://nileex.io/join/getJoinPage)
+- Request Nile TRX for both parties
+- Request Nile USDT if you want to test TRX/USDT deals
+
+### 4. Deploy contracts
+
+Create `contracts/.env.nile`:
+
+```bash
+export PRIVATE_KEY_NILE=YOUR_NILE_DEPLOYER_PRIVATE_KEY
+```
+
+Deploy:
 
 ```bash
 cd contracts
-npm install
-npm test
+source .env.nile
+npm run tronbox:migrate:nile
 ```
 
-### 2) Backend
+### 5. Configure frontend
+
+`frontend/.env`
 
 ```bash
-cd backend
-npm install
-npm run dev
+VITE_OTC_SETTLEMENT=TYkV7zAq6XgEPK9yMQ9UYvBiSvFxAgrY3w
+VITE_USDT=TF6HCtac1NwF7sSSq3CvQr5ezhp4MnMoFA
+VITE_FEE_LIMIT_SUN=120000000
 ```
 
-### 3) Frontend
+### 6. Run frontend
 
 ```bash
 cd frontend
-npm install
 npm run dev
 ```
 
-## Demo Mode
+Open `http://localhost:5173`.
 
-Set `VITE_DEMO_MODE=true` in `frontend/.env` to:
+## Demo Walkthrough
 
-- preload fake balances
-- simulate route and settlement data
-- bypass wallet requirement for UI demos
+1. Connect TronLink on Nile
+2. Party A creates a deal: for example `sell 100 USDT for 10 TRX`
+3. Party B opens the same app, sees the deal, and accepts it
+4. Each side funds escrow
+5. Both sides confirm they are ready to settle
+6. One final settlement transaction releases both assets atomically
+7. The app shows:
+   - final status
+   - all tx hashes
+   - downloadable settlement receipt
 
-## Nile Testnet Notes
+You can also demonstrate:
 
-- configure TronLink to Nile
-- set `VITE_PAYMENT_PROCESSOR` and token addresses in frontend env
-- use `tronbox` or Tron IDE deployment flow from `docs/nile-deployment.md`
+- dispute flow: raise dispute before confirmation
+- expiry flow: let the timeout pass, then claim expiry
+- cancel flow: creator cancels before acceptance
 
-## Example Test Transactions
+## Tests
 
-From contract tests:
+Run:
 
-- Request: `50 USDT`
-- Inputs: `400 WTRX + 300 JST`
-- Output: merchant receives exactly `50 USDT`
-- Slippage failure and liquidity failure scenarios are also covered
+```bash
+cd contracts
+npm test
+```
 
-## Submission Checklist
+Covered cases:
 
-- [x] Tests-first smart contract implementation
-- [x] Exact USDT settlement and intent execution flow
-- [x] Merchant dashboard + payer checkout UX
-- [x] Failure handling with actionable UX hints
-- [x] Receipt generation and export
-- [x] Demo mode and live mode toggle
-- [x] Nile deployment and env documentation
+- happy path settlement
+- expiry refunds
+- dispute + resolution
+- cancellation
+- access control
+- double-funding prevention
+- reentrancy protection
+
+## Future Improvements
+
+- multi-sig or role-based dispute resolution
+- partial fills
+- order-book or RFQ layer for desk workflows
+- server-side indexing and notification webhooks
+- institutional API and CSV/export bundles

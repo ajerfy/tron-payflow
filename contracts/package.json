@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "test": "hardhat test",
-    "compile": "hardhat compile"
+    "compile": "hardhat compile",
+    "tronbox:migrate:nile": "tronbox migrate --network nile --reset"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",

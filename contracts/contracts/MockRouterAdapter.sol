@@ -20,6 +20,7 @@ contract MockRouterAdapter {
 
     error InsufficientLiquidity();
     error UnsupportedAsset();
+    error TransferFailed();
 
     address public immutable usdt;
     uint16 public feeBps;
@@ -62,7 +63,7 @@ contract MockRouterAdapter {
             uint256 realizedNet = (realizedGross * (10_000 - feeBps)) / 10_000;
             uint256 fee = realizedGross - realizedNet;
 
-            ITokenLike(a.token).transferFrom(msg.sender, address(this), requiredIn);
+            if (!ITokenLike(a.token).transferFrom(msg.sender, address(this), requiredIn)) revert TransferFailed();
             used[i] = requiredIn;
             totalGross += realizedGross;
             totalFee += fee;
@@ -70,7 +71,7 @@ contract MockRouterAdapter {
         }
 
         if (remaining != 0) revert InsufficientLiquidity();
-        ITokenLike(usdt).transfer(msg.sender, exactOutUsdt);
+        if (!ITokenLike(usdt).transfer(msg.sender, exactOutUsdt)) revert TransferFailed();
 
         result = SwapResult({
             totalInputValueUsdt: totalGross,

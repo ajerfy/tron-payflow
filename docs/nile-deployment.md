@@ -2,15 +2,16 @@
 
 ## 1) Deploy Contracts
 
-Use TronBox or Tron IDE with Solidity `0.8.24` compatible compiler.
+Deploy the contracts in this order:
 
-Deploy order:
+1. `MockTRC20` for the supported payer assets and settlement USDT, or substitute the Nile token addresses you plan to demo with
+2. `MockRouterAdapter` using the settlement USDT address
+3. `PaymentProcessor` using the USDT and router addresses
 
-1. `MockTRC20` (or real USDT address on Nile)
-2. `MockRouterAdapter` (set USDT address)
-3. `PaymentProcessor` (USDT + Router addresses)
+The contract now supports:
 
-If using real DEXs, deploy adapter contracts and pass coordinator/router address into `PaymentProcessor`.
+- invoice expiry via `createPaymentRequest(amountUsdt, expiresAt, merchantRef)`
+- on-chain verification via `getPaymentRequestSummary(requestId)`
 
 ## 2) Configure Frontend Env
 
@@ -20,36 +21,51 @@ Create `frontend/.env`:
 VITE_BACKEND_URL=http://localhost:4100
 VITE_DEMO_MODE=false
 VITE_PAYMENT_PROCESSOR=TNILE_PAYMENT_PROCESSOR_ADDRESS
-VITE_USDT=TNILE_USDT_ADDRESS
 VITE_FEE_LIMIT_SUN=120000000
 VITE_PAYMENT_DEADLINE_SECONDS=900
+VITE_TRONSCAN_BASE_URL=https://nile.tronscan.org/#
 VITE_SUPPORTED_ASSETS_JSON=[{"token":"TWTRX_ADDRESS","symbol":"WTRX","decimals":6,"usdtRate":0.11,"feeBps":30},{"token":"TJST_ADDRESS","symbol":"JST","decimals":18,"usdtRate":0.19,"feeBps":35},{"token":"TSUN_ADDRESS","symbol":"SUN","decimals":18,"usdtRate":0.14,"feeBps":40}]
 ```
 
-Use `VITE_DEMO_MODE=true` only for offline demo simulation.
+## 3) TronLink and Wallet Setup
 
-## 3) TronLink + Nile Setup
+- Install TronLink
+- Switch the wallet to Nile testnet
+- Create at least two accounts: one merchant and one payer
+- Fund the payer with TRX for energy/bandwidth and the supported tokens used in the route
 
-- install TronLink extension
-- switch network to Nile testnet
-- fund payer wallet with test TRX for energy/bandwidth
+## 4) What the UI Verifies
 
-## 4) Production Swap Integration Notes
+After a successful payment, the frontend reads `getPaymentRequestSummary(requestId)` and stores:
 
-- map route legs to SunSwap/JustMoney swap calls
-- compute and validate `amountOutMin` per hop
-- preserve exact-output final USDT by adding input buffer and strict refund path
-- optionally integrate fee delegation for smoother UX
+- request id
+- merchant address
+- payer address
+- amount settled
+- total input value
+- total fee
+- reconciliation hash
+- paid timestamp
 
-## 5) Live User Flow (Now Wired)
+The receipt view then shows:
 
-1. Merchant clicks "Create Payment Link" in frontend.
-2. Frontend creates on-chain payment request using `createPaymentRequest`.
-3. Backend stores link + `onchainRequestId`.
-4. Payer opens link, balances are read via TronWeb.
-5. Quote route is computed by backend.
-6. Payer clicks pay:
-   - TRC-20 approvals are sent
-   - `executeIntentPayment` is simulated (`.call()`) for safety
-   - live tx is broadcast (`.send()`)
-7. Backend marks payment paid and stores receipt.
+- the tx hash
+- a TronScan link
+- the on-chain request id
+- the reconciliation hash
+
+## 5) Live Demo Flow on Nile
+
+1. Merchant opens the dashboard and enters wallet, support email, and invoice expiry.
+2. Merchant creates an invoice and receives a pay link.
+3. Payer opens the link, connects TronLink, and computes the route.
+4. Payer reviews fees, signs approvals if needed, and executes the payment.
+5. UI shows the tx hash and on-chain verification details.
+6. Merchant dashboard shows the invoice as paid and includes it in reconciliation export.
+
+## 6) Production Hardening Ideas
+
+- Replace `MockRouterAdapter` with a Nile-compatible DEX integration
+- Add backend-side chain verification instead of trusting the browser to post proof
+- Add fee delegation or gas sponsorship for smoother retail UX
+- Persist payments in a database instead of in-memory storage
