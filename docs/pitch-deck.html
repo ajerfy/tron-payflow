@@ -1,0 +1,597 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Instant OTC Settlement Layer | Pitch Deck</title>
+    <style>
+      :root {
+        --bg: #f6f1f1;
+        --panel: rgba(255, 255, 255, 0.96);
+        --panel-strong: #ffffff;
+        --ink: #171717;
+        --muted: #6c5a5a;
+        --line: rgba(157, 33, 55, 0.14);
+        --cyan: #b5122b;
+        --teal: #d61f3a;
+        --green: #b5122b;
+        --amber: #d61f3a;
+        --blue: #c01832;
+        --shadow: 0 20px 70px rgba(99, 24, 36, 0.12);
+      }
+
+      * { box-sizing: border-box; }
+
+      html, body {
+        margin: 0;
+        background:
+          radial-gradient(circle at top left, rgba(192, 24, 50, 0.12), transparent 28%),
+          radial-gradient(circle at bottom right, rgba(214, 31, 58, 0.1), transparent 24%),
+          var(--bg);
+        color: var(--ink);
+        font-family: "IBM Plex Sans", "Aptos", "Segoe UI", sans-serif;
+      }
+
+      body {
+        padding: 36px 24px 80px;
+      }
+
+      .deck {
+        display: grid;
+        gap: 28px;
+        justify-content: center;
+      }
+
+      .slide {
+        width: min(1280px, calc(100vw - 48px));
+        aspect-ratio: 16 / 9;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 242, 242, 0.98));
+        border: 1px solid var(--line);
+        border-radius: 28px;
+        box-shadow: var(--shadow);
+        overflow: hidden;
+        position: relative;
+        display: grid;
+      }
+
+      .slide::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(135deg, rgba(192, 24, 50, 0.06), transparent 30%),
+          linear-gradient(225deg, rgba(214, 31, 58, 0.05), transparent 28%);
+        pointer-events: none;
+      }
+
+      .content {
+        position: relative;
+        z-index: 1;
+        padding: 48px 54px;
+        display: grid;
+        gap: 22px;
+      }
+
+      .kicker {
+        display: inline-flex;
+        width: fit-content;
+        align-items: center;
+        padding: 5px 12px;
+        border-radius: 999px;
+        background: rgba(192, 24, 50, 0.09);
+        color: var(--cyan);
+        font-size: 13px;
+        line-height: 1;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      h1, h2, h3, p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: clamp(46px, 5vw, 74px);
+        line-height: 0.96;
+        letter-spacing: -0.04em;
+        max-width: 980px;
+      }
+
+      h2 {
+        font-size: 42px;
+        line-height: 1.02;
+        letter-spacing: -0.03em;
+      }
+
+      h3 {
+        font-size: 24px;
+        line-height: 1.15;
+        letter-spacing: -0.02em;
+      }
+
+      p, li {
+        color: var(--muted);
+        font-size: 20px;
+        line-height: 1.45;
+      }
+
+      ul {
+        margin: 0;
+        padding-left: 24px;
+        display: grid;
+        gap: 12px;
+      }
+
+      .grid-2 {
+        display: grid;
+        grid-template-columns: 1.1fr 0.9fr;
+        gap: 26px;
+        align-items: stretch;
+      }
+
+      .grid-3 {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .metric-row {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
+      }
+
+      .card, .metric, .callout, .timeline-step {
+        border-radius: 22px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.95);
+        padding: 22px;
+      }
+
+      .metric {
+        display: grid;
+        gap: 8px;
+      }
+
+      .metric strong {
+        font-size: 34px;
+        color: var(--ink);
+        letter-spacing: -0.04em;
+      }
+
+      .metric span {
+        color: var(--muted);
+        font-size: 16px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .problem-stack, .value-stack {
+        display: grid;
+        gap: 14px;
+      }
+
+      .problem-item, .value-item {
+        display: grid;
+        gap: 6px;
+        padding: 18px 18px 18px 20px;
+        border-left: 3px solid rgba(192, 24, 50, 0.4);
+        background: rgba(192, 24, 50, 0.03);
+        border-radius: 14px;
+      }
+
+      .problem-item strong, .value-item strong {
+        font-size: 22px;
+      }
+
+      .workflow {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 14px;
+        align-items: start;
+      }
+
+      .timeline-step {
+        min-height: 190px;
+        display: grid;
+        gap: 10px;
+      }
+
+      .timeline-step .num {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--blue), var(--teal));
+        display: grid;
+        place-items: center;
+        font-weight: 700;
+        color: white;
+      }
+
+      .mono {
+        font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+      }
+
+      .big-quote {
+        font-size: 34px;
+        line-height: 1.18;
+        color: var(--ink);
+        max-width: 1000px;
+        letter-spacing: -0.03em;
+      }
+
+      .tag-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .tag {
+        border-radius: 999px;
+        padding: 10px 14px;
+        background: rgba(192, 24, 50, 0.05);
+        border: 1px solid var(--line);
+        color: var(--ink);
+        font-size: 16px;
+      }
+
+      .right-rail {
+        display: grid;
+        gap: 18px;
+      }
+
+      .demo-box {
+        border-radius: 24px;
+        border: 1px dashed rgba(192, 24, 50, 0.26);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 242, 242, 0.98));
+        padding: 22px;
+        display: grid;
+        gap: 14px;
+      }
+
+      .demo-box .window {
+        border-radius: 18px;
+        border: 1px solid var(--line);
+        background: #fffdfd;
+        overflow: hidden;
+      }
+
+      .window-top {
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(192, 24, 50, 0.04);
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .window-body {
+        padding: 18px;
+        display: grid;
+        gap: 14px;
+      }
+
+      .mini-card {
+        border-radius: 16px;
+        border: 1px solid rgba(192, 24, 50, 0.14);
+        background: rgba(192, 24, 50, 0.03);
+        padding: 14px 16px;
+      }
+
+      .mini-card strong {
+        display: block;
+        margin-bottom: 6px;
+      }
+
+      .closing {
+        display: grid;
+        grid-template-columns: 1fr 420px;
+        gap: 24px;
+        align-items: end;
+      }
+
+      .video-shell {
+        border-radius: 24px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.98);
+        padding: 16px;
+        display: grid;
+        gap: 0;
+        height: 100%;
+      }
+
+      .video-frame {
+        width: 100%;
+        height: 100%;
+        min-height: 520px;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        overflow: hidden;
+        background: #fffdfd;
+      }
+
+      .video-frame iframe {
+        width: 100%;
+        height: 100%;
+        border: 0;
+      }
+
+      .highlight {
+        color: var(--green);
+      }
+
+      @media print {
+        body {
+          background: white;
+          padding: 0;
+        }
+
+        .deck {
+          gap: 0;
+        }
+
+        .slide {
+          width: 100vw;
+          height: 100vh;
+          border-radius: 0;
+          box-shadow: none;
+          page-break-after: always;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="deck">
+      <section class="slide">
+        <div class="content">
+          <div class="kicker">TRON Nile • B2B Payments • OTC Infrastructure</div>
+          <h1>Instant OTC Settlement Layer</h1>
+          <p class="big-quote">Atomic escrow and settlement for OTC crypto trades on TRON. Replace trust-based chat workflows with bilateral on-chain funding, dual confirmation, and receipt-grade verification.</p>
+          <div class="metric-row">
+            <div class="metric"><span>Network</span><strong>TRON Nile</strong></div>
+            <div class="metric"><span>Core Product</span><strong>OTC Escrow</strong></div>
+            <div class="metric"><span>Users</span><strong>Party A / B</strong></div>
+            <div class="metric"><span>Outcome</span><strong>Atomic Settlement</strong></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide">
+        <div class="content">
+          <div class="kicker">Problem</div>
+          <h2>OTC settlement is still operationally primitive.</h2>
+          <div class="grid-2">
+            <div class="problem-stack">
+              <div class="problem-item">
+                <strong>Counterparty risk</strong>
+                <p>One side often moves first, creating delivery risk and expensive trust assumptions.</p>
+              </div>
+              <div class="problem-item">
+                <strong>Chat-driven workflows</strong>
+                <p>Telegram messages, screenshots, and manual instructions are standing in for actual settlement infrastructure.</p>
+              </div>
+              <div class="problem-item">
+                <strong>No audit-grade receipt trail</strong>
+                <p>Ops teams still reconstruct what happened after the fact instead of working from live state and linked transactions.</p>
+              </div>
+            </div>
+            <div class="callout">
+              <h3>What desks need</h3>
+              <ul>
+                <li>bilateral escrow before release</li>
+                <li>clear state transitions</li>
+                <li>timeouts and dispute handling</li>
+                <li>verifiable receipts and tx history</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide">
+        <div class="content">
+          <div class="kicker">Solution</div>
+          <h2>A product, not just a contract.</h2>
+          <div class="grid-3">
+            <div class="card">
+              <h3>Structured OTC deal creation</h3>
+              <p>Party A defines exact assets, amounts, named counterparty, and timeout window in a clean front-end workflow.</p>
+            </div>
+            <div class="card">
+              <h3>Bilateral escrow funding</h3>
+              <p>Both parties deposit before settlement, eliminating “who moves first?” risk.</p>
+            </div>
+            <div class="card">
+              <h3>Atomic settlement + receipt</h3>
+              <p>Final settlement is executed on-chain and mapped back into a human-readable audit trail.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide">
+        <div class="content">
+          <div class="kicker">Workflow</div>
+          <h2>Five-step bilateral settlement flow</h2>
+          <div class="workflow">
+            <div class="timeline-step">
+              <div class="num">1</div>
+              <h3>Create</h3>
+              <p>Party A creates a deal with exact trade terms and the named counterparty.</p>
+            </div>
+            <div class="timeline-step">
+              <div class="num">2</div>
+              <h3>Accept</h3>
+              <p>Party B reviews the deal and explicitly accepts before any funding begins.</p>
+            </div>
+            <div class="timeline-step">
+              <div class="num">3</div>
+              <h3>Fund escrow</h3>
+              <p>Each side independently funds its asset into the contract.</p>
+            </div>
+            <div class="timeline-step">
+              <div class="num">4</div>
+              <h3>Confirm readiness</h3>
+              <p>Both parties confirm they are ready to settle. No unilateral release.</p>
+            </div>
+            <div class="timeline-step">
+              <div class="num">5</div>
+              <h3>Finalize</h3>
+              <p>Settlement executes atomically and generates a receipt-grade activity record.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide">
+        <div class="content">
+          <div class="kicker">Product Experience</div>
+          <h2>Two distinct roles, one coherent product journey</h2>
+          <div class="grid-2">
+            <div class="value-stack">
+              <div class="value-item">
+                <strong>Party A experience</strong>
+                <p>Create deal, define counterparty, set timeout, fund escrow, and monitor settlement state.</p>
+              </div>
+              <div class="value-item">
+                <strong>Party B experience</strong>
+                <p>Accept deal, verify exact terms, fund escrow, confirm readiness, and finalize or dispute.</p>
+              </div>
+              <div class="value-item">
+                <strong>Operations experience</strong>
+                <p>Use transaction history and receipt artifacts to verify what happened, when, and in which order.</p>
+              </div>
+            </div>
+            <div class="demo-box">
+              <h3>What the UI actually shows</h3>
+              <div class="window">
+                <div class="window-top">TRON PayFlow • OTC Detail</div>
+                <div class="window-body">
+                  <div class="mini-card">
+                    <strong>Status machine</strong>
+                    <p>Created → Accepted → BothFunded → Settled, with dispute and expiry branches.</p>
+                  </div>
+                  <div class="mini-card">
+                    <strong>Action controls</strong>
+                    <p>Buttons only appear when the connected wallet is allowed to perform that step.</p>
+                  </div>
+                  <div class="mini-card">
+                    <strong>Verification rail</strong>
+                    <p>Every state transition carries a transaction hash and explorer link.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide">
+        <div class="content">
+          <div class="kicker">Why TRON</div>
+          <h2>TRON is a natural home for operational settlement products.</h2>
+          <div class="grid-3">
+            <div class="card">
+              <h3>Fast user feedback</h3>
+              <p>The product benefits from short transaction loops because settlement is a sequence of confirmations, not a single blind transfer.</p>
+            </div>
+            <div class="card">
+              <h3>Low-friction asset movement</h3>
+              <p>Energy and bandwidth are easier to explain to business users than unpredictable gas markets.</p>
+            </div>
+            <div class="card">
+              <h3>Verifiable operations</h3>
+              <p>The app maps every lifecycle action back to TRON Nile transaction proof and receipt-style records.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide">
+        <div class="content">
+          <div class="kicker">Differentiation</div>
+          <h2>Why this is stronger than a simple wallet demo</h2>
+          <div class="grid-3">
+            <div class="card">
+              <h3>Not just send / receive</h3>
+              <p>The product manages the business workflow around settlement, not just the payment primitive itself.</p>
+            </div>
+            <div class="card">
+              <h3>Not just a contract</h3>
+              <p>There is a complete product layer: dashboard, role-aware actions, failure messaging, activity feed, and receipt.</p>
+            </div>
+            <div class="card">
+              <h3>Not just DeFi for traders</h3>
+              <p>This addresses a real operational problem for desks, brokers, and institutional counterparties.</p>
+            </div>
+          </div>
+          <div class="metric-row">
+            <div class="metric"><span>Buyer Value</span><strong>Reduced risk</strong></div>
+            <div class="metric"><span>Ops Value</span><strong>Cleaner audit trail</strong></div>
+            <div class="metric"><span>Product Value</span><strong>Role-specific UX</strong></div>
+            <div class="metric"><span>Chain Value</span><strong>On-chain proof</strong></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide">
+        <div class="content">
+          <div class="kicker">Roadmap</div>
+          <h2>A clear wedge into larger OTC and treasury infrastructure</h2>
+          <div class="grid-2">
+            <div class="card">
+              <h3>Near-term expansion</h3>
+              <ul>
+                <li>multi-sig or committee-based dispute resolution</li>
+                <li>partial fills and tranche settlement</li>
+                <li>CSV exports and webhook notifications</li>
+                <li>counterparty permissioning for desk teams</li>
+              </ul>
+            </div>
+            <div class="card">
+              <h3>Longer-term product surface</h3>
+              <ul>
+                <li>RFQ workflow and order intake</li>
+                <li>institutional API for brokers and PSPs</li>
+                <li>settlement analytics and exception management</li>
+                <li>embedded compliance and ops tooling</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide">
+        <div class="content">
+          <div class="kicker">Close</div>
+          <div class="closing">
+            <div>
+              <h2>Instant OTC Settlement Layer turns TRON into a real settlement rail for bilateral trading workflows.</h2>
+            </div>
+            <div class="callout">
+              <h3>One-line pitch</h3>
+              <p>“We built Stripe-like settlement coordination for OTC crypto trades, using TRON Nile as the execution and verification layer.”</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide">
+        <div class="content">
+          <div class="kicker">Embedded Demo</div>
+          <h2>Demo</h2>
+          <div class="video-shell">
+            <div class="video-frame">
+              <iframe
+                src="https://drive.google.com/file/d/14mlXsh2bkvW4_28BDW3WGmzwZRVMwtv1/preview"
+                allow="autoplay"
+                allowfullscreen
+                title="Instant OTC Settlement Layer demo video"
+              ></iframe>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
